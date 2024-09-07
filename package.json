@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-<...>",
+  "name": "n8n-nodes-bullmq",
   "version": "0.1.0",
   "description": "",
   "keywords": [
@@ -35,13 +35,9 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/ExampleCredentialsApi.credentials.js",
-      "dist/credentials/HttpBinApi.credentials.js"
-    ],
+    "credentials": [],
     "nodes": [
-      "dist/nodes/ExampleNode/ExampleNode.node.js",
-      "dist/nodes/HttpBin/HttpBin.node.js"
+      "dist/nodes/Bullmq/Bullmq.node.js"
     ]
   },
   "devDependencies": {
@@ -55,5 +51,11 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "bullmq": "^5.12.14",
+    "install": "^0.13.0",
+    "ioredis": "^5.4.1",
+    "n8n-nodes-base": "^1.14.1"
   }
 }

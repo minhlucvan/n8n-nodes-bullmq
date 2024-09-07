@@ -1,46 +1,61 @@
 ![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
 
-# n8n-nodes-starter
+# n8n-nodes-bullmq
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](n8n.io). It includes the node linter and other dependencies.
+This package provides nodes to interact with [BullMQ](https://docs.bullmq.io/) in n8n.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+## Installation
 
-## Prerequisites
+There are two ways to install community nodes:
 
-You need the following installed on your development machine:
+- Within n8n using the GUI, [find more information here](https://docs.n8n.io/integrations/community-nodes/installation/gui-install/)
 
-* [git](https://git-scm.com/downloads)
-* Node.js and pnpm. Minimum version Node 18. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  pnpm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
 
-## Using this starter
+- Manually from the command line: use this method if your n8n instance doesn't support installation through 
+ [The n8n CLI](https://docs.n8n.io/integrations/community-nodes/installation/manual-install/)
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
-   ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
-   ```
-3. Run `pnpm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `pnpm lint` to check for errors or `pnpm lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+## BullMQ 
 
-## More information
+BullMQ is a Node.js queue library that is built on top of Redis. It is a rewrite of the original Bull library, which is no longer maintained. BullMQ is a simple, fast, and reliable queue library that is suitable for a wide range of use cases.
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+While working with **N8N** I found that we need some way to to queue the jobs and work on them asynchronously. Since **Redis** and **BullMQ** are most lightweight and reliable solutions for this, I decided to create a set of nodes to work with **BullMQ**.
+
+## Use Cases
+
+- **Queueing Jobs**: You can use the BullMQ nodes to queue jobs that need to be processed asynchronously. This can be useful when you have a large number of jobs that need to be processed, but you don't want to block the main thread.
+- **Workflow monitoring**: You can use the BullMQ nodes to monitor the progress of a workflow. with **bullmq-board** you can monitor the progress of the jobs in the queue.
+- **Workflow rate limiting**: You can use the BullMQ nodes to rate limit the number of jobs that are processed at a time. This can be useful when you have a large number of jobs that need to be processed, but you don't want to overload the system.
+- **Workflow retries**: You can use the BullMQ nodes to retry jobs that fail. This can be useful when you have jobs that are prone to failure, and you want to automatically retry them until they succeed.
+- **Flow control**: You can use the BullMQ nodes to control the flow of jobs in a workflow. This can be useful when you want to ensure that jobs are processed in a specific order, or when you want to pause or resume the processing of jobs.
+
+
+## Nodes
+
+### BullMQ Trigger
+
+Starts a workflow when a new job is added to the specified queue.
+
+there are two modes for the trigger:
+- respond immediately: the trigger will respond immediately with the job data, and mark the job as completed.
+- wait for completion: the trigger will wait for the job to be completed before responding with the job data.
+
+Notes: In order to wait for the job to be completed, we must use the **BullMQ Respond** node to mark the job as completed.
+
+### BullMQ 
+
+BullMQ node to add a job to the specified queue, wih the ability to pass data to the job and options.
+
+### BullMQ Respond
+
+BullMQ node to mark a job as completed, failed, or delayed.
+
+Notes: The respond node requires the `jobId` and a `lockToken` to mark the job as completed, failed, or delayed. you could get those values from the **BullMQ Trigger** node.
+
+## Contribution
+
+I would love to see more features and nodes added to this package. If you have any ideas or suggestions, feel free to open an issue or a pull request.
 
 ## License
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+[LICENSE](./LICENSE)
