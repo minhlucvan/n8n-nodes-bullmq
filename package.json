@@ -55,7 +55,6 @@
   "dependencies": {
     "bullmq": "^5.12.14",
     "install": "^0.13.0",
-    "ioredis": "^5.4.1",
-    "n8n-nodes-base": "^1.14.1"
+    "ioredis": "^5.4.1"
   }
 }
