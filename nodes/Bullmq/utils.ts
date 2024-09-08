@@ -114,3 +114,14 @@ export function parseJson(jsonString: string, fallback: any): IDataObject {
 		return fallback;
 	}
 }
+
+
+export function craftJobReturnValue(json: any) {
+	if (typeof json !== 'object') {
+		return json;
+	}
+
+	return {
+		data: json.data,
+	}
+}

@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { setupRedisClient, redisConnectionTest, getQueue, parseJson } from './utils';
+import { setupRedisClient, redisConnectionTest, getQueue, parseJson, craftJobReturnValue } from './utils';
 import { DefaultJobOptions, QueueEvents } from 'bullmq';
 
 type IDataObject = { [key: string]: any };
@@ -271,12 +271,25 @@ export class Bullmq implements INodeType {
 
 						if (waitUntilFinished) {
 							const queueEvents = new QueueEvents(queueName, { connection });
-							const finishedJob = await job.waitUntilFinished(queueEvents, +timeToLive);
+							await job.waitUntilFinished(queueEvents, +timeToLive);
 
-							item.json = finishedJob.toJSON();
+							if (!job.id) {
+								throw new NodeOperationError(
+									this.getNode(),
+									`The job did not return an id!`,
+								);
+							}
+
+							const updatedJob = await queue.getJob(job.id);
+
+							if (updatedJob) {
+								item.json = updatedJob.toJSON();
+							} else {
+								item.json = job.toJSON();
+							}
 
 							if (returnValue) {
-								item.json = finishedJob.returnvalue;
+								item.json = craftJobReturnValue(item.json.returnvalue);
 							}
 
 							items[itemIndex] = item;
