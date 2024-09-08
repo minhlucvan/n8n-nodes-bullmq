@@ -23,7 +23,7 @@
   "main": "index.js",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "tsc && gulp build:icons",
+    "build": "gulp clean && tsc && gulp build:icons",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes package.json",
@@ -37,9 +37,9 @@
     "n8nNodesApiVersion": 1,
     "credentials": [],
     "nodes": [
-      "dist/nodes/Bullmq/Bullmq.node.js",
-      "dist/nodes/Bullmq/BullmqTrigger.node.js",
-      "dist/nodes/Bullmq/BullmqRespomd.node.js"
+      "nodes/Bullmq/Bullmq.node.js",
+      "nodes/Bullmq/BullmqTrigger.node.js",
+      "nodes/Bullmq/BullmqRespomd.node.js"
     ]
   },
   "devDependencies": {
