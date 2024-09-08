@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-bullmq",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "N8n nodes for BullMQ",
   "keywords": [
     "n8n-community-node-package"
@@ -23,7 +23,7 @@
   "main": "index.js",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "gulp clean && tsc && gulp build:icons",
+    "build": "gulp clean && tsc && gulp build:icons && cd dist && pnpm install --production",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes package.json",
@@ -37,9 +37,9 @@
     "n8nNodesApiVersion": 1,
     "credentials": [],
     "nodes": [
-      "nodes/Bullmq/Bullmq.node.js",
-      "nodes/Bullmq/BullmqTrigger.node.js",
-      "nodes/Bullmq/BullmqRespomd.node.js"
+      "dist/nodes/Bullmq/Bullmq.node.js",
+      "dist/nodes/Bullmq/BullmqTrigger.node.js",
+      "dist/nodes/Bullmq/BullmqRespomd.node.js"
     ]
   },
   "devDependencies": {
