@@ -31,7 +31,7 @@ type INodeParameters = {
 };
 export class Bullmq implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Bullmq',
+		displayName: 'BullMQ',
 		name: 'bullmq',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
 		icon: 'file:bullmq.png',
@@ -39,7 +39,7 @@ export class Bullmq implements INodeType {
 		version: 1,
 		description: 'Get, send and update data in Redis',
 		defaults: {
-			name: 'Redis',
+			name: 'BullMQ',
 		},
 		inputs: ['main'],
 		outputs: ['main'],

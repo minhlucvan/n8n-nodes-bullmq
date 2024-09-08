@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-bullmq",
-  "version": "0.2.1",
+  "version": "0.2.7",
   "description": "N8n nodes for BullMQ",
   "keywords": [
     "n8n-community-node-package"
@@ -28,8 +28,7 @@
     "format": "prettier nodes --write",
     "lint": "eslint nodes package.json",
     "lintfix": "eslint nodes package.json --fix",
-    "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes package.json",
-    "postinstall": "npm install --omit=dev"
+    "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes package.json"
   },
   "files": [
     "dist"
@@ -40,7 +39,7 @@
     "nodes": [
       "dist/nodes/Bullmq/Bullmq.node.js",
       "dist/nodes/Bullmq/BullmqTrigger.node.js",
-      "dist/nodes/Bullmq/BullmqRespomd.node.js"
+      "dist/nodes/Bullmq/BullmqRespond.node.js"
     ]
   },
   "devDependencies": {

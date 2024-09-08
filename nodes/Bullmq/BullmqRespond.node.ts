@@ -15,7 +15,7 @@ import {
 
 export class BullmqRespond implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Bullmq Respond',
+		displayName: 'BullMQ Respond',
 		name: 'bullmqRespond',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
 		icon: 'file:bullmq.png',
@@ -23,7 +23,7 @@ export class BullmqRespond implements INodeType {
 		version: 1,
 		description: 'Respond to Bullmq jobs',
 		defaults: {
-			name: 'Bullmq Respond',
+			name: 'BullMQ Respond',
 		},
 		inputs: ['main'],
 		outputs: ['main'],

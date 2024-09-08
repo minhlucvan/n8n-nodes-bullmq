@@ -23,7 +23,7 @@ type Options = WorkerOptionsExposed & {
 
 export class BullmqTrigger implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Bullmq Trigger',
+		displayName: 'BullMQ Trigger',
 		name: 'bullmqTrigger',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
 		icon: 'file:bullmq.png',
@@ -31,7 +31,7 @@ export class BullmqTrigger implements INodeType {
 		version: 1,
 		description: 'Register new workers for Bullmq',
 		defaults: {
-			name: 'Bullmq Trigger',
+			name: 'BullMQ Trigger',
 		},
 		inputs: [],
 		outputs: ['main'],
