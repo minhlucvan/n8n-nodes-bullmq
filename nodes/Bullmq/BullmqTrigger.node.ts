@@ -7,14 +7,19 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 
 import { createWorker, setupRedisClient, redisConnectionTest } from './utils';
-import { DelayedError, Job } from 'bullmq';
+import { DelayedError, Job, WorkerOptions } from 'bullmq';
 
 type RespondType = 'immediate' | 'useRespondNode';
 
-interface Options {
+type WorkerOptionsExposed = Pick<
+	WorkerOptions,
+	'lockDuration' | 'concurrency' | 'runRetryDelay'
+>;
+
+type Options = WorkerOptionsExposed & {
 	onlyData: boolean;
 	respondType: RespondType;
-}
+};
 
 export class BullmqTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -71,6 +76,27 @@ export class BullmqTrigger implements INodeType {
 						],
 					},
 					{
+						displayName: 'Lock Duration',
+						name: 'lockDuration',
+						type: 'number',
+						default: 60000,
+						description: 'The duration in milliseconds for which the lock should be held',
+					},
+					{
+						displayName: 'Concurrency',
+						name: 'concurrency',
+						type: 'number',
+						default: 1,
+						description: 'The number of jobs that can be processed concurrently',
+					},
+					{
+						displayName: 'Run Retry Delay',
+						name: 'runRetryDelay',
+						type: 'number',
+						default: 5000,
+						description: 'The duration in milliseconds to wait before retrying a job',
+					},
+					{
 						displayName: 'Only Data',
 						name: 'onlyData',
 						type: 'boolean',
@@ -91,14 +117,21 @@ export class BullmqTrigger implements INodeType {
 
 		const queueName = this.getNodeParameter('queueName') as string;
 		const options = this.getNodeParameter('options') as Options;
-		const respondType = options.respondType;
+
+		const {
+			respondType,
+			lockDuration = 60000,
+			concurrency = 1,
+			onlyData = false,
+			runRetryDelay = 0,
+		} = options;
 
 		if (!queueName) {
 			throw new NodeOperationError(this.getNode(), 'Queue Name must be set');
 		}
 
 		const onJob = async (job: Job, token?: string) => {
-			const payload = options.onlyData ? { data: job.data } : job.toJSON();
+			const payload = onlyData ? { data: job.data } : job.toJSON();
 
 			// check that job is being updated
 			// when data.step is set to 'waiting', we skip the job to wait for the next trigger
@@ -106,6 +139,8 @@ export class BullmqTrigger implements INodeType {
 				// eslint-disable-next-line n8n-nodes-base/node-execute-block-wrong-error-thrown
 				throw new DelayedError('Job is waiting');
 			}
+
+			job.log(`Job received, executionId ${this.getExecutionId()}`);
 
 			// add token to payload
 			const payloadWithToken = { ...payload, lockToken: token };
@@ -116,13 +151,17 @@ export class BullmqTrigger implements INodeType {
 				};
 			}
 
+			// respondType === 'delayed'
+
 			if (token === undefined) {
 				throw new NodeOperationError(this.getNode(), 'Token is missing');
 			}
 
 			// extend lock to prevent job from being picked up by by another/node
 			// noormaly this would be done in the respond node
-			await job.extendLock(token, 60000);
+			await job.extendLock(token, lockDuration);
+
+			job.log(`Lock extended for ${lockDuration}ms`);
 
 			this.emit([this.helpers.returnJsonArray(payloadWithToken)]);
 
@@ -131,6 +170,9 @@ export class BullmqTrigger implements INodeType {
 		};
 
 		const connection = setupRedisClient(credentials);
+
+		const workerName = this.getWorkflow().name;
+
 		let worker: any;
 
 		const manualTriggerFunction = async () => {
@@ -140,7 +182,13 @@ export class BullmqTrigger implements INodeType {
 					worker.close();
 					return onJob(job, token);
 				},
-				{ lockDuration: 60000, connection, autorun: false },
+				{
+					lockDuration: 60000,
+					connection,
+					autorun: false,
+					name: workerName,
+					concurrency: 1,
+				},
 			);
 
 			worker.run();
@@ -148,9 +196,12 @@ export class BullmqTrigger implements INodeType {
 
 		if (this.getMode() === 'trigger') {
 			worker = createWorker(queueName, onJob as any, {
-				lockDuration: 60000,
+				lockDuration,
 				connection,
 				autorun: false,
+				name: workerName,
+				concurrency,
+				runRetryDelay,
 			});
 			worker.run();
 		}

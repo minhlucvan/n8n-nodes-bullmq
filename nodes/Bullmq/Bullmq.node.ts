@@ -6,14 +6,29 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import {
-	setupRedisClient,
-	redisConnectionTest,
-	getQueue,
-} from './utils';
+import { setupRedisClient, redisConnectionTest, getQueue } from './utils';
+import { DefaultJobOptions, QueueEvents } from 'bullmq';
 
 type IDataObject = { [key: string]: any };
 
+type IAddOptions = {
+	delay: DefaultJobOptions['delay'];
+	priority: DefaultJobOptions['priority'];
+	attempts: DefaultJobOptions['attempts'];
+	backoff: DefaultJobOptions['backoff'];
+	lifo: DefaultJobOptions['lifo'];
+	removeOnComplete: DefaultJobOptions['removeOnComplete'];
+	removeOnFail: DefaultJobOptions['removeOnFail'];
+	timeToLive: number;
+};
+
+type INodeParameters = {
+	operation: string;
+	queueName: string;
+	jobName: string;
+	jobData: IDataObject;
+	waitUntilFinished: boolean;
+};
 export class Bullmq implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Bullmq',
@@ -52,8 +67,6 @@ export class Bullmq implements INodeType {
 				],
 				default: 'add',
 			},
-
-
 
 			// ----------------------------------
 			//         Add
@@ -97,6 +110,89 @@ export class Bullmq implements INodeType {
 				required: true,
 				description: 'Job data to add',
 			},
+			{
+				displayName: 'waitUntilFinished',
+				name: 'waitUntilFinished',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['add'],
+					},
+				},
+				default: false,
+				description: 'Whether to wait until the job is finished, Don\'t use this option for long running jobs',
+			},
+			{
+				displayName: 'Options',
+				name: 'options',
+				type: 'collection',
+				placeholder: 'Add option',
+				displayOptions: {
+					show: {
+						operation: ['add'],
+					},
+				},
+				default: {},
+				options: [
+					{
+						displayName: 'timeToLive',
+						name: 'timeToLive',
+						type: 'number',
+						default: 0,
+						description: 'Time in milliseconds before the job should be failed',
+					},
+					{
+						displayName: 'Delay',
+						name: 'delay',
+						type: 'number',
+						default: 0,
+						description: 'Delay in milliseconds before the job should be processed',
+					},
+					{
+						displayName: 'Priority',
+						name: 'priority',
+						type: 'number',
+						default: 0,
+						description: 'Priority of the jobb, from 1 to any, higher is higher priority',
+					},
+					{
+						displayName: 'Attempts',
+						name: 'attempts',
+						type: 'number',
+						default: 0,
+						description: 'Number of attempts to run the job',
+					},
+					{
+						displayName: 'Backoff',
+						name: 'backoff',
+						type: 'number',
+						default: 0,
+						description: 'Backoff time in milliseconds',
+					},
+					{
+						displayName: 'Lifo',
+						name: 'lifo',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to process the job in LIFO order, otherwise FIFO',
+					},
+					{
+						displayName: 'Remove On Complete',
+						name: 'removeOnComplete',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to remove the job from the queue when it is completed',
+					},
+					{
+						displayName: 'Remove On Fail',
+						name: 'removeOnFail',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to remove the job from the queue when it fails',
+					}
+				]
+			},
+
 		],
 	};
 
@@ -113,34 +209,72 @@ export class Bullmq implements INodeType {
 
 		const connection = setupRedisClient(credentials);
 
-		const operation = this.getNodeParameter('operation', 0);
+		const operation = this.getNodeParameter('operation', 0) as INodeParameters['operation'];
 		const returnItems: INodeExecutionData[] = [];
 
 		try {
-			if (
-				['add'].includes(operation)
-			) {
+			if (['add'].includes(operation)) {
 				const items = this.getInputData();
 
 				for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 					const item: INodeExecutionData = { json: {}, pairedItem: { item: itemIndex } };
 
 					if (operation === 'add') {
-						const queueName = this.getNodeParameter('queueName', itemIndex) as string;
+						const queueName = this.getNodeParameter('queueName', itemIndex) as INodeParameters['queueName'];
 
-						const jobName = this.getNodeParameter('jobName', itemIndex) as string;
-						const messageData = this.getNodeParameter('jobData', itemIndex) as IDataObject;
+						const jobName = this.getNodeParameter('jobName', itemIndex) as INodeParameters['jobName'];
+						const messageData = this.getNodeParameter('jobData', itemIndex) as INodeParameters['jobData'];
+
+						const options = this.getNodeParameter('options', itemIndex) as IAddOptions;
+
+						const {
+							timeToLive,
+							delay = 0,
+							priority = 1,
+							attempts = 1,
+							backoff = 0,
+							lifo = false,
+							removeOnComplete = false,
+							removeOnFail = false,
+						} = options;
 
 						const queue = await getQueue.call(this, queueName, { connection });
 
-						const job = await queue.add(jobName, messageData);
+						const job = await queue.add(jobName, messageData, {
+							delay,
+							priority,
+							attempts,
+							backoff,
+							lifo,
+							removeOnComplete,
+							removeOnFail,
+						});
 
-						item.json = job.toJSON();
-						items[itemIndex] = item;
+						job.log(`Job added from executionId ${this.getExecutionId()}`);
 
-						returnItems.push(items[itemIndex]);
+						// If the option to wait until the job is finished is set wait for it
+						const waitUntilFinished = this.getNodeParameter(
+							'waitUntilFinished',
+							itemIndex,
+						) as boolean;
+
+						if (waitUntilFinished) {
+							const queueEvents = new QueueEvents(queueName, { connection });
+							await job.waitUntilFinished(queueEvents, +timeToLive);
+
+							item.json = job.toJSON();
+							items[itemIndex] = item;
+							returnItems.push(items[itemIndex]);
+						} else {
+							item.json = job.toJSON();
+							items[itemIndex] = item;
+							returnItems.push(items[itemIndex]);
+						}
 					} else {
-						throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported!`);
+						throw new NodeOperationError(
+							this.getNode(),
+							`The operation "${operation}" is not supported!`,
+						);
 					}
 				}
 			}

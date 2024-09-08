@@ -151,6 +151,8 @@ export class BullmqRespond implements INodeType {
 								throw new NodeOperationError(this.getNode(), `Job with ID "${jobId}" does not exist!`);
 							}
 
+							job.log(`Job is about to be responded from executionId ${this.getExecutionId()}`);
+
 							await job.moveToCompleted(data, lockToken);
 
 							item.json = job.toJSON();
