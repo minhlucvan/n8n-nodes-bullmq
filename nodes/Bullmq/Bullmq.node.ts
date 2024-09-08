@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { setupRedisClient, redisConnectionTest, getQueue } from './utils';
+import { setupRedisClient, redisConnectionTest, getQueue, parseJson } from './utils';
 import { DefaultJobOptions, QueueEvents } from 'bullmq';
 
 type IDataObject = { [key: string]: any };
@@ -20,6 +20,7 @@ type IAddOptions = {
 	removeOnComplete: DefaultJobOptions['removeOnComplete'];
 	removeOnFail: DefaultJobOptions['removeOnFail'];
 	timeToLive: number;
+	returnValue: boolean;
 };
 
 type INodeParameters = {
@@ -111,7 +112,7 @@ export class Bullmq implements INodeType {
 				description: 'Job data to add',
 			},
 			{
-				displayName: 'waitUntilFinished',
+				displayName: 'Wait Until Finished',
 				name: 'waitUntilFinished',
 				type: 'boolean',
 				displayOptions: {
@@ -140,6 +141,13 @@ export class Bullmq implements INodeType {
 						type: 'number',
 						default: 0,
 						description: 'Time in milliseconds before the job should be failed',
+					},
+					{
+						displayName: 'Retunrn Value',
+						name: 'returnValue',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to return the value of the job',
 					},
 					{
 						displayName: 'Delay',
@@ -236,11 +244,14 @@ export class Bullmq implements INodeType {
 							lifo = false,
 							removeOnComplete = false,
 							removeOnFail = false,
+							returnValue = false,
 						} = options;
 
 						const queue = await getQueue.call(this, queueName, { connection });
 
-						const job = await queue.add(jobName, messageData, {
+						const jsonPayload = parseJson(messageData as any, messageData);
+
+						const job = await queue.add(jobName, jsonPayload, {
 							delay,
 							priority,
 							attempts,
@@ -260,9 +271,14 @@ export class Bullmq implements INodeType {
 
 						if (waitUntilFinished) {
 							const queueEvents = new QueueEvents(queueName, { connection });
-							await job.waitUntilFinished(queueEvents, +timeToLive);
+							const finishedJob = await job.waitUntilFinished(queueEvents, +timeToLive);
 
-							item.json = job.toJSON();
+							item.json = finishedJob.toJSON();
+
+							if (returnValue) {
+								item.json = finishedJob.returnvalue;
+							}
+
 							items[itemIndex] = item;
 							returnItems.push(items[itemIndex]);
 						} else {

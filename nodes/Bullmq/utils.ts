@@ -105,3 +105,12 @@ queueName: string, handler: string | null | Processor<DataType, ResultType, Name
 	const worker = new Worker(queueName, handler, extraOptions);
 	return worker as unknown as Worker<DataType, ResultType, NameType>;
 }
+
+
+export function parseJson(jsonString: string, fallback: any): IDataObject {
+	try {
+		return JSON.parse(jsonString);
+	} catch (error) {
+		return fallback;
+	}
+}
