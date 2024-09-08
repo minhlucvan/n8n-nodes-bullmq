@@ -160,6 +160,8 @@ export class BullmqRespond implements INodeType {
 							items[itemIndex] = item;
 
 							returnItems.push(items[itemIndex]);
+
+							queue.close();
 							break;
 						default:
 							throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported!`);

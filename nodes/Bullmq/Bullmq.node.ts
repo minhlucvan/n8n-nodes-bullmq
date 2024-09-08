@@ -29,6 +29,8 @@ type INodeParameters = {
 	jobName: string;
 	jobData: IDataObject;
 	waitUntilFinished: boolean;
+	dataSource: 'previousNode' | 'input';
+	options: IAddOptions;
 };
 export class Bullmq implements INodeType {
 	description: INodeTypeDescription = {
@@ -99,19 +101,6 @@ export class Bullmq implements INodeType {
 				description: 'Job name to publish',
 			},
 			{
-				displayName: 'Data',
-				name: 'jobData',
-				type: 'json',
-				displayOptions: {
-					show: {
-						operation: ['add'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Job data to add',
-			},
-			{
 				displayName: 'Wait Until Finished',
 				name: 'waitUntilFinished',
 				type: 'boolean',
@@ -122,6 +111,47 @@ export class Bullmq implements INodeType {
 				},
 				default: false,
 				description: 'Whether to wait until the job is finished, Don\'t use this option for long running jobs',
+			},
+			{
+				// allow ủe to choose get data from previous node or self input
+				displayName: 'Data Source',
+				name: 'dataSource',
+				type: 'options',
+				displayOptions: {
+					show: {
+						operation: ['add'],
+					},
+				},
+				options: [
+					{
+						name: 'Previous Node',
+						value: 'previousNode',
+						description: 'Get data from previous node',
+					},
+					{
+						name: 'Input',
+						value: 'input',
+						description: 'Use data from the input',
+					},
+				],
+				default: 'previousNode',
+			},
+			// If the data source is previous node, we will not show the jobData fields array
+			{
+				displayName: 'Job Data',
+				name: 'jobData',
+				type: 'assignmentCollection',
+				typeOptions: {
+					multipleValues: true,
+					multipleValueButtonText: 'Add Job Data',
+				},
+				displayOptions: {
+					show: {
+						operation: ['add'],
+						dataSource: ['input'],
+					},
+				},
+				default: {},
 			},
 			{
 				displayName: 'Options',
@@ -232,6 +262,7 @@ export class Bullmq implements INodeType {
 
 						const jobName = this.getNodeParameter('jobName', itemIndex) as INodeParameters['jobName'];
 						const messageData = this.getNodeParameter('jobData', itemIndex) as INodeParameters['jobData'];
+						const dataSource = this.getNodeParameter('dataSource', itemIndex) as INodeParameters['dataSource'];
 
 						const options = this.getNodeParameter('options', itemIndex) as IAddOptions;
 
@@ -249,7 +280,7 @@ export class Bullmq implements INodeType {
 
 						const queue = await getQueue.call(this, queueName, { connection });
 
-						const jsonPayload = parseJson(messageData as any, messageData);
+						const jsonPayload = dataSource === 'previousNode' ? item.json : parseJson(messageData as any, messageData);
 
 						const job = await queue.add(jobName, jsonPayload, {
 							delay,
@@ -294,11 +325,15 @@ export class Bullmq implements INodeType {
 
 							items[itemIndex] = item;
 							returnItems.push(items[itemIndex]);
+
+							queueEvents.close();
 						} else {
 							item.json = job.toJSON();
 							items[itemIndex] = item;
 							returnItems.push(items[itemIndex]);
 						}
+
+						queue.close();
 					} else {
 						throw new NodeOperationError(
 							this.getNode(),
