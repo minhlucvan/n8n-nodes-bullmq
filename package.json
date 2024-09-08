@@ -1,12 +1,12 @@
 {
   "name": "n8n-nodes-bullmq",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "N8n nodes for BullMQ",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://www.npmjs.com/package/n8n-nodes-bullmq",
   "author": {
     "name": "@minhlucvan",
     "email": "luk.mink@gmail.com"
