@@ -1,10 +1,13 @@
 import type {
+	AssignmentCollectionValue,
 	ICredentialDataDecryptedObject,
 	ICredentialTestFunctions,
 	ICredentialsDecrypted,
 	IDataObject,
 	IExecuteFunctions,
 	INodeCredentialTestResult,
+	INodeExecutionData,
+	ITaskData,
 } from 'n8n-workflow';
 
 import IORedis, { RedisOptions } from 'ioredis';
@@ -107,8 +110,12 @@ queueName: string, handler: string | null | Processor<DataType, ResultType, Name
 }
 
 
-export function parseJson(jsonString: string, fallback: any): IDataObject {
+export function parseJson(jsonString: any, fallback: any): IDataObject {
 	try {
+		if (typeof jsonString === 'object') {
+			return jsonString;
+		}
+
 		return JSON.parse(jsonString);
 	} catch (error) {
 		return fallback;
@@ -124,4 +131,94 @@ export function craftJobReturnValue(json: any) {
 	return {
 		data: json.data,
 	}
+}
+
+
+export function parseAssignmentsCollection(
+	collection: AssignmentCollectionValue,
+	fallback: IDataObject,
+): IDataObject {
+	try {
+		const returnData = Object.fromEntries(
+			collection.assignments.map(({ name, value }) => {
+				return [name, value]
+			}
+		));
+
+		return returnData;
+	}  catch (error) {
+		return fallback;
+	}
+}
+
+
+
+export function extractNodeExecutionResultData(executionResult: ITaskData[]): IDataObject {
+	if (!executionResult) {
+		return {};
+	}
+
+	if (executionResult.length === 1) {
+		return extractItemExecutionResultData(executionResult[0]);
+	}
+
+	return {
+		items: executionResult.map((res) => extractItemExecutionResultData(res, 'main')),
+	};
+}
+
+function extractItemExecutionResultData(executionResult: ITaskData, output = 'main'): IDataObject {
+	if (!executionResult) {
+		return {};
+	}
+
+	if (executionResult?.data === undefined) {
+		return {};
+	}
+
+	const mainData = executionResult?.data[output];
+
+	if (mainData === undefined) {
+		return {};
+	}
+
+	const returnData = extractConnectionExecutionData(mainData);
+
+	return returnData;
+}
+
+function extractConnectionExecutionData(data: Array<INodeExecutionData[] | null>): IDataObject {
+	if (!data) {
+		return {};
+	}
+
+	if (data.length === 1) {
+		return extractOutputDataExecutionData(data[0]);
+	}
+
+	return {
+		items: data.map(extractOutputDataExecutionData),
+	};
+}
+
+function extractOutputDataExecutionData(data: INodeExecutionData[] | null): IDataObject {
+	if (!data || data.length === 0) {
+		return {};
+	}
+
+	if (data.length === 1) {
+		return extractSingleOutputDataExecutionData(data[0]);
+	}
+
+	return {
+		items: data.map(extractSingleOutputDataExecutionData),
+	};
+}
+
+function extractSingleOutputDataExecutionData(data: INodeExecutionData): IDataObject {
+	if (data.json === undefined) {
+		return {};
+	}
+
+	return data.json as IDataObject;
 }

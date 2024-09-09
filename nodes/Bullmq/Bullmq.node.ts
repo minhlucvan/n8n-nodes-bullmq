@@ -6,7 +6,7 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { setupRedisClient, redisConnectionTest, getQueue, parseJson, craftJobReturnValue } from './utils';
+import { setupRedisClient, redisConnectionTest, getQueue, parseAssignmentsCollection, craftJobReturnValue, parseJson } from './utils';
 import { DefaultJobOptions, QueueEvents } from 'bullmq';
 
 type IDataObject = { [key: string]: any };
@@ -100,20 +100,8 @@ export class Bullmq implements INodeType {
 				required: true,
 				description: 'Job name to publish',
 			},
+			// allow ủe to choose get data from previous node or self input
 			{
-				displayName: 'Wait Until Finished',
-				name: 'waitUntilFinished',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['add'],
-					},
-				},
-				default: false,
-				description: 'Whether to wait until the job is finished, Don\'t use this option for long running jobs',
-			},
-			{
-				// allow ủe to choose get data from previous node or self input
 				displayName: 'Data Source',
 				name: 'dataSource',
 				type: 'options',
@@ -141,10 +129,6 @@ export class Bullmq implements INodeType {
 				displayName: 'Job Data',
 				name: 'jobData',
 				type: 'assignmentCollection',
-				typeOptions: {
-					multipleValues: true,
-					multipleValueButtonText: 'Add Job Data',
-				},
 				displayOptions: {
 					show: {
 						operation: ['add'],
@@ -152,6 +136,18 @@ export class Bullmq implements INodeType {
 					},
 				},
 				default: {},
+			},
+			{
+				displayName: 'Wait Until Finished',
+				name: 'waitUntilFinished',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						operation: ['add'],
+					},
+				},
+				default: false,
+				description: 'Whether to wait until the job is finished, Don\'t use this option for long running jobs',
 			},
 			{
 				displayName: 'Options',
@@ -255,14 +251,15 @@ export class Bullmq implements INodeType {
 				const items = this.getInputData();
 
 				for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+					const inputItem = items[itemIndex];
 					const item: INodeExecutionData = { json: {}, pairedItem: { item: itemIndex } };
 
 					if (operation === 'add') {
 						const queueName = this.getNodeParameter('queueName', itemIndex) as INodeParameters['queueName'];
 
 						const jobName = this.getNodeParameter('jobName', itemIndex) as INodeParameters['jobName'];
-						const messageData = this.getNodeParameter('jobData', itemIndex) as INodeParameters['jobData'];
 						const dataSource = this.getNodeParameter('dataSource', itemIndex) as INodeParameters['dataSource'];
+						const messageData = this.getNodeParameter('jobData', itemIndex, {}) as INodeParameters['jobData'];
 
 						const options = this.getNodeParameter('options', itemIndex) as IAddOptions;
 
@@ -280,7 +277,19 @@ export class Bullmq implements INodeType {
 
 						const queue = await getQueue.call(this, queueName, { connection });
 
-						const jsonPayload = dataSource === 'previousNode' ? item.json : parseJson(messageData as any, messageData);
+						const cleanup = async () => {
+							try {
+								queue.close();
+								queue.disconnect();
+							} catch (error) {
+								// @ts-ignore
+								console.log(error);
+							}
+						}
+
+						const jsonPayload = dataSource === 'previousNode' ?
+							parseJson(inputItem.json as any, {}) :
+							parseAssignmentsCollection(messageData as any, {});
 
 						const job = await queue.add(jobName, jsonPayload, {
 							delay,
@@ -302,9 +311,22 @@ export class Bullmq implements INodeType {
 
 						if (waitUntilFinished) {
 							const queueEvents = new QueueEvents(queueName, { connection });
+
+							const cleanupQueueEvents = async () => {
+								try {
+									queueEvents.close();
+									queueEvents.disconnect();
+								} catch (error) {
+									// @ts-ignore
+									console.log(error);
+								}
+							}
+
 							await job.waitUntilFinished(queueEvents, +timeToLive);
 
 							if (!job.id) {
+								cleanupQueueEvents();
+								cleanup();
 								throw new NodeOperationError(
 									this.getNode(),
 									`The job did not return an id!`,
@@ -326,14 +348,14 @@ export class Bullmq implements INodeType {
 							items[itemIndex] = item;
 							returnItems.push(items[itemIndex]);
 
-							queueEvents.close();
+							cleanupQueueEvents();
 						} else {
 							item.json = job.toJSON();
 							items[itemIndex] = item;
 							returnItems.push(items[itemIndex]);
 						}
 
-						queue.close();
+						cleanup();
 					} else {
 						throw new NodeOperationError(
 							this.getNode(),

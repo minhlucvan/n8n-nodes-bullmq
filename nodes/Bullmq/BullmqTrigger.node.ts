@@ -3,18 +3,16 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 	ITriggerResponse,
+	IDeferredPromise,
 } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { IRun, NodeOperationError } from 'n8n-workflow';
 
-import { createWorker, setupRedisClient, redisConnectionTest } from './utils';
-import { DelayedError, Job, WorkerOptions } from 'bullmq';
+import { createWorker, setupRedisClient, redisConnectionTest, extractNodeExecutionResultData } from './utils';
+import { DelayedError, Job, Worker, WorkerOptions } from 'bullmq';
 
-type RespondType = 'immediate' | 'useRespondNode';
+type RespondType = 'immediate' | 'useRespondNode' | 'useLastNode';
 
-type WorkerOptionsExposed = Pick<
-	WorkerOptions,
-	'lockDuration' | 'concurrency' | 'runRetryDelay'
->;
+type WorkerOptionsExposed = Pick<WorkerOptions, 'lockDuration' | 'concurrency' | 'runRetryDelay'>;
 
 type Options = WorkerOptionsExposed & {
 	onlyData: boolean;
@@ -53,28 +51,32 @@ export class BullmqTrigger implements INodeType {
 				description: 'The name of the queue to listen to',
 			},
 			{
+				displayName: 'Respond Type',
+				name: 'respondType',
+				type: 'options',
+				default: 'useLastNode',
+				options: [
+					{
+						name: 'Use Last Node',
+						value: 'useLastNode',
+					},
+					{
+						name: 'Immediate',
+						value: 'immediate',
+					},
+					{
+						name: 'Use Respond Node',
+						value: 'useRespondNode',
+					},
+				],
+			},
+			{
 				displayName: 'Options',
 				name: 'options',
 				type: 'collection',
 				placeholder: 'Add option',
 				default: {},
 				options: [
-					{
-						displayName: 'Respond Type',
-						name: 'respondType',
-						type: 'options',
-						default: 'immediate',
-						options: [
-							{
-								name: 'Immediate',
-								value: 'immediate',
-							},
-							{
-								name: 'Delayed',
-								value: 'delayed',
-							},
-						],
-					},
 					{
 						displayName: 'Lock Duration',
 						name: 'lockDuration',
@@ -116,21 +118,21 @@ export class BullmqTrigger implements INodeType {
 		const credentials = await this.getCredentials('redis');
 
 		const queueName = this.getNodeParameter('queueName') as string;
+		const respondType = this.getNodeParameter('respondType') as RespondType;
 		const options = this.getNodeParameter('options') as Options;
 
-		const {
-			respondType,
-			lockDuration = 60000,
-			concurrency = 1,
-			onlyData = false,
-			runRetryDelay = 0,
-		} = options;
+		const { lockDuration = 60000, concurrency = 1, onlyData = false, runRetryDelay = 0 } = options;
 
 		if (!queueName) {
 			throw new NodeOperationError(this.getNode(), 'Queue Name must be set');
 		}
 
-		const onJob = async (job: Job, token?: string) => {
+		// @ts-ignore
+		const processJob = async (
+			job: Job,
+			token?: string | null,
+			donePromise?: IDeferredPromise<IRun>,
+		) => {
 			const payload = onlyData ? { data: job.data } : job.toJSON();
 
 			// check that job is being updated
@@ -140,7 +142,7 @@ export class BullmqTrigger implements INodeType {
 				throw new DelayedError('Job is waiting');
 			}
 
-			job.log(`Job received, executionId ${this.getExecutionId()}`);
+			job.log(`Job received, executionId ${this.getExecutionId()}, responding type ${respondType}`);
 
 			// add token to payload
 			const payloadWithToken = { ...payload, lockToken: token };
@@ -153,56 +155,127 @@ export class BullmqTrigger implements INodeType {
 
 			// respondType === 'delayed'
 
-			if (token === undefined) {
+			if (!token) {
 				throw new NodeOperationError(this.getNode(), 'Token is missing');
 			}
 
-			// extend lock to prevent job from being picked up by by another/node
-			// noormaly this would be done in the respond node
-			await job.extendLock(token, lockDuration);
+			const dataItems = this.helpers.returnJsonArray(payloadWithToken);
 
-			job.log(`Lock extended for ${lockDuration}ms`);
-
-			this.emit([this.helpers.returnJsonArray(payloadWithToken)]);
-
-			// eslint-disable-next-line n8n-nodes-base/node-execute-block-wrong-error-thrown
-			throw new DelayedError('Job was triggered');
+			this.emit([dataItems], undefined, donePromise);
 		};
 
 		const connection = setupRedisClient(credentials);
 
 		const workerName = this.getWorkflow().name;
 
-		let worker: any;
+		let worker: Worker;
 
-		const manualTriggerFunction = async () => {
-			worker = createWorker(
-				queueName,
-				async (job: Job, token?: string) => {
-					worker.close();
-					return onJob(job, token);
-				},
-				{
-					lockDuration: 60000,
-					connection,
-					autorun: false,
-					name: workerName,
-					concurrency: 1,
-				},
-			);
+		const manualTriggerFunction = () => {
+			return new Promise<void>((resolve) => {
+				worker = createWorker(
+					queueName,
+					async (job: Job, token?: string) => {
+						processJob(job, token);
+						resolve();
+					},
+					{
+						lockDuration: 60000,
+						connection,
+						autorun: false,
+						name: workerName,
+						concurrency: 1,
+					},
+				);
 
-			worker.run();
+				worker.run();
+			});
 		};
 
 		if (this.getMode() === 'trigger') {
-			worker = createWorker(queueName, onJob as any, {
-				lockDuration,
-				connection,
-				autorun: false,
-				name: workerName,
-				concurrency,
-				runRetryDelay,
-			});
+			worker = createWorker(
+				queueName,
+				// @ts-ignore
+				async (job: Job, token: ?string) => {
+					const donePromise =
+						respondType === 'useLastNode'
+							? await this.helpers.createDeferredPromise<IRun>()
+							: undefined;
+
+					await processJob(job, token, donePromise);
+
+					if (respondType === 'immediate') {
+						return {
+							respondType: 'immediate',
+							executionId: this.getExecutionId(),
+						};
+					}
+
+					// token is required for 'useRespondNode' and 'useLastNode'
+					if (!token) {
+						throw new NodeOperationError(this.getNode(), 'Token is missing');
+					}
+
+					if (respondType === 'useRespondNode') {
+						// if respondType is 'useRespondNode' we extend the lock
+						// so the job can be processed by the respond node
+						await job.extendLock(token, lockDuration);
+
+						// @ts-ignore
+						console.log('Job is deleted and being released from the response node');
+
+						// eslint-disable-next-line n8n-nodes-base/node-execute-block-wrong-error-thrown
+						throw new DelayedError('Job was triggered');
+					}
+
+					// default to useLastNode
+
+					if (!donePromise) {
+						throw new NodeOperationError(this.getNode(), 'Done promise is missing');
+					}
+
+					const result = await donePromise.promise();
+
+					// parse error
+					const lastNodeResult = result.data.resultData;
+					const executionStatus = result.status;
+
+					job.log(
+						`Job is about to be released, executionId ${this.getExecutionId()}, status ${executionStatus}`,
+					);
+
+					if (executionStatus === 'error') {
+						const lastNodeError = lastNodeResult.error;
+						throw new NodeOperationError(this.getNode(), lastNodeError);
+					}
+
+					const lastNodeExecuted = lastNodeResult.lastNodeExecuted;
+
+					if (!lastNodeExecuted) {
+						throw new NodeOperationError(this.getNode(), 'Last node executed is missing');
+					}
+
+					const lastNodeExecutionResult = lastNodeResult.runData[lastNodeExecuted];
+
+					if (!lastNodeExecutionResult) {
+						throw new NodeOperationError(this.getNode(), 'Last node execution data is missing');
+					}
+
+					const lastNodeExecutionResultData =
+						extractNodeExecutionResultData(lastNodeExecutionResult);
+
+					// move job to completed
+					// by returning the data from the last node
+					return lastNodeExecutionResultData;
+				},
+				{
+					lockDuration,
+					connection,
+					autorun: false,
+					name: workerName,
+					concurrency,
+					runRetryDelay,
+				},
+			);
 			worker.run();
 		}
 
