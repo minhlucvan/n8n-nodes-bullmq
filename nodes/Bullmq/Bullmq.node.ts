@@ -37,7 +37,7 @@ export class Bullmq implements INodeType {
 		displayName: 'BullMQ',
 		name: 'bullmq',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
-		icon: 'file:bullmq.png',
+		icon: 'file:bullmq.svg',
 		group: ['input'],
 		version: 1,
 		description: 'Get, send and update data in Redis',

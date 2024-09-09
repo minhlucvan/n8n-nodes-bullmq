@@ -18,7 +18,7 @@ export class BullmqRespond implements INodeType {
 		displayName: 'BullMQ Respond',
 		name: 'bullmqRespond',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
-		icon: 'file:bullmq.png',
+		icon: 'file:bullmq.svg',
 		group: ['output'],
 		version: 1,
 		description: 'Respond to Bullmq jobs',

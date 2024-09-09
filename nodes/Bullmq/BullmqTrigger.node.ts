@@ -26,7 +26,7 @@ export class BullmqTrigger implements INodeType {
 		displayName: 'BullMQ Trigger',
 		name: 'bullmqTrigger',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
-		icon: 'file:bullmq.png',
+		icon: 'file:bullmq.svg',
 		group: ['trigger'],
 		version: 1,
 		description: 'Register new workers for Bullmq',

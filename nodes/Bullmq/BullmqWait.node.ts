@@ -96,7 +96,7 @@ export class BullmqWait implements Node {
 		displayName: 'Wait for Job',
 		name: 'bullmqWait',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg
-		icon: 'file:bullmq.png',
+		icon: 'file:bullmq.svg',
 		group: ['input'],
 		version: 1,
 		description: 'Wait for a job in BullMQ',
