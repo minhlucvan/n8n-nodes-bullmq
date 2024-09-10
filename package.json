@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-bullmq",
-  "version": "0.5.1",
+  "version": "0.5.3",
   "description": "N8n nodes for BullMQ",
   "keywords": [
     "n8n-community-node-package"

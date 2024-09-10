@@ -243,7 +243,7 @@ export class BullmqTrigger implements INodeType {
 						`Job is about to be released, executionId ${this.getExecutionId()}, status ${executionStatus}`,
 					);
 
-					if (executionStatus === 'error') {
+					if (lastNodeResult.error) {
 						const lastNodeError = lastNodeResult.error;
 						throw new NodeOperationError(this.getNode(), lastNodeError);
 					}
