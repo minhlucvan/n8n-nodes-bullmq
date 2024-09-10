@@ -7,8 +7,9 @@ import type {
 } from 'n8n-workflow';
 import { IRun, NodeOperationError } from 'n8n-workflow';
 
-import { createWorker, setupRedisClient, redisConnectionTest, extractNodeExecutionResultData } from './utils';
+import { createWorker, setupRedisClient, extractNodeExecutionResultData } from './utils';
 import { DelayedError, Job, Worker, WorkerOptions } from 'bullmq';
+import { redisConnectionTest } from './GenericFuntions';
 
 type RespondType = 'immediate' | 'useRespondNode' | 'useLastNode';
 
@@ -43,12 +44,43 @@ export class BullmqTrigger implements INodeType {
 		],
 		properties: [
 			{
+				displayName: "Queue Source",
+				name: "queueSource",
+				type: "options",
+				options: [
+					{
+						name: "Workflows",
+						value: "workflows",
+					},
+					{
+						name: "Custom",
+						value: "custom",
+					},
+				],
+				default: "workflows",
+			},
+			{
 				displayName: 'Queue Name',
 				name: 'queueName',
 				type: 'string',
 				default: '',
 				required: true,
-				description: 'The name of the queue to listen to',
+				description: 'Queue name to add the job to',
+				displayOptions: {
+					show: {
+						queueSource: [
+							"custom"
+						]
+					},
+				},
+			},
+			{
+				displayName: 'Job Name',
+				name: 'jobName',
+				type: 'string',
+				default: '',
+				required: true,
+				description: 'Job name to publish',
 			},
 			{
 				displayName: 'Respond Type',
@@ -117,11 +149,15 @@ export class BullmqTrigger implements INodeType {
 	async trigger(this: ITriggerFunctions): Promise<ITriggerResponse> {
 		const credentials = await this.getCredentials('redis');
 
-		const queueName = this.getNodeParameter('queueName') as string;
+		const workflowId = this.getWorkflow().id;
+
+		const queueNameParam = this.getNodeParameter('queueName', '') as string;
 		const respondType = this.getNodeParameter('respondType') as RespondType;
 		const options = this.getNodeParameter('options') as Options;
 
 		const { lockDuration = 60000, concurrency = 1, onlyData = false, runRetryDelay = 0 } = options;
+
+		const queueName = queueNameParam || workflowId;
 
 		if (!queueName) {
 			throw new NodeOperationError(this.getNode(), 'Queue Name must be set');

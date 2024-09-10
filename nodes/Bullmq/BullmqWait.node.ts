@@ -8,7 +8,8 @@ import type {
 	Node,
 } from 'n8n-workflow';
 import { NodeOperationError, WAIT_TIME_UNLIMITED } from 'n8n-workflow';
-import { getQueue, redisConnectionTest, setupRedisClient } from './utils';
+import { getQueue, redisConnectionTest } from './GenericFuntions';
+import { setupRedisClient } from './utils';
 
 
 // import { setupRedisClient, redisConnectionTest, getQueue } from './utils';

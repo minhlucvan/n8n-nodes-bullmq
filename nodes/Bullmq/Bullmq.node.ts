@@ -6,8 +6,9 @@ import type {
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 
-import { setupRedisClient, redisConnectionTest, getQueue, parseAssignmentsCollection, craftJobReturnValue, parseJson } from './utils';
+import { setupRedisClient, parseAssignmentsCollection, craftJobReturnValue, parseJson } from './utils';
 import { DefaultJobOptions, QueueEvents } from 'bullmq';
+import { getQueue, getWorkflowInfo, redisConnectionTest } from './GenericFuntions';
 
 type IDataObject = { [key: string]: any };
 
@@ -29,6 +30,7 @@ type INodeParameters = {
 	jobName: string;
 	jobData: IDataObject;
 	waitUntilFinished: boolean;
+	queueSource: 'workflows' | 'custom';
 	dataSource: 'previousNode' | 'input';
 	options: IAddOptions;
 };
@@ -70,10 +72,27 @@ export class Bullmq implements INodeType {
 				],
 				default: 'add',
 			},
-
-			// ----------------------------------
-			//         Add
-			// ----------------------------------
+			{
+				displayName: "Queue Source",
+				name: "queueSource",
+				type: "options",
+				options: [
+					{
+						name: "Workflows",
+						value: "workflows",
+					},
+					{
+						name: "Custom",
+						value: "custom",
+					},
+				],
+				default: "workflows",
+				displayOptions: {
+					show: {
+						operation: ["add"],
+					},
+				},
+			},
 			{
 				displayName: 'Queue Name',
 				name: 'queueName',
@@ -81,11 +100,26 @@ export class Bullmq implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['add'],
+						queueSource: ['custom'],
 					},
 				},
 				default: '',
 				required: true,
 				description: 'Queue name to add the job to',
+			},
+			{
+				displayName: "Workflow",
+				name: "workflowId",
+				// @ts-ignore
+				type: "workflowSelector",
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						operation: ["add"],
+						queueSource: ["workflows"],
+					},
+				},
 			},
 			{
 				displayName: 'Job Name',
@@ -241,6 +275,8 @@ export class Bullmq implements INodeType {
 		//       Should maybe have a parameter which is JSON.
 		const credentials = await this.getCredentials('redis');
 
+		const source = this.getNodeParameter('queueSource', 0, '') as INodeParameters['queueSource'];
+
 		const connection = setupRedisClient(credentials);
 
 		const operation = this.getNodeParameter('operation', 0) as INodeParameters['operation'];
@@ -255,7 +291,17 @@ export class Bullmq implements INodeType {
 					const item: INodeExecutionData = { json: {}, pairedItem: { item: itemIndex } };
 
 					if (operation === 'add') {
-						const queueName = this.getNodeParameter('queueName', itemIndex) as INodeParameters['queueName'];
+
+						const workflowInfo = await getWorkflowInfo.call(this, source, itemIndex);
+
+						if (!workflowInfo.id) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`The workflow did not return an id!`,
+							);
+						}
+
+						const queueName = workflowInfo.id;
 
 						const jobName = this.getNodeParameter('jobName', itemIndex) as INodeParameters['jobName'];
 						const dataSource = this.getNodeParameter('dataSource', itemIndex) as INodeParameters['dataSource'];

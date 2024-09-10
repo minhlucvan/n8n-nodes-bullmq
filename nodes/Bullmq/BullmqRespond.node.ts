@@ -8,12 +8,11 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 
 import {
-	getQueue,
 	parseAssignmentsCollection,
 	parseJson,
-	redisConnectionTest,
 	setupRedisClient,
 } from './utils';
+import { getQueue, redisConnectionTest } from './GenericFuntions';
 
 export class BullmqRespond implements INodeType {
 	description: INodeTypeDescription = {

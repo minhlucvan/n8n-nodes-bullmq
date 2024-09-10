@@ -1,17 +1,11 @@
 import type {
 	AssignmentCollectionValue,
-	ICredentialDataDecryptedObject,
-	ICredentialTestFunctions,
-	ICredentialsDecrypted,
-	IDataObject,
-	IExecuteFunctions,
-	INodeCredentialTestResult,
-	INodeExecutionData,
-	ITaskData,
+	ICredentialDataDecryptedObject, IDataObject, INodeExecutionData,
+	ITaskData
 } from 'n8n-workflow';
 
 import IORedis, { RedisOptions } from 'ioredis';
-import { Processor, Queue, QueueOptions, Worker, WorkerOptions } from 'bullmq';
+import { Processor, Worker, WorkerOptions } from 'bullmq';
 
 export type RedisClientType = IORedis;
 
@@ -29,26 +23,6 @@ export function setupRedisClient(credentials: ICredentialDataDecryptedObject): R
 	return connection;
 }
 
-export async function redisConnectionTest(
-	this: ICredentialTestFunctions,
-	credential: ICredentialsDecrypted,
-): Promise<INodeCredentialTestResult> {
-	const credentials = credential.data as ICredentialDataDecryptedObject;
-
-	try {
-		const client = setupRedisClient(credentials);
-		await client.ping();
-		return {
-			status: 'OK',
-			message: 'Connection successful!',
-		};
-	} catch (error) {
-		return {
-			status: 'Error',
-			message: error.message,
-		};
-	}
-}
 
 /** Parses the given value in a number if it is one else returns a string */
 function getParsedValue(value: string): string | number {
@@ -91,15 +65,6 @@ export function convertInfoToObject(stringData: string): IDataObject {
 	return returnData;
 }
 
-export async function getQueue(
-	this: IExecuteFunctions,
-	queueName: string,
-	options: QueueOptions,
-): Promise<Queue> {
-	const queue = new Queue(queueName, options);
-
-	return queue;
-}
 
 
 export function createWorker<DataType, ResultType, NameType extends string>(
