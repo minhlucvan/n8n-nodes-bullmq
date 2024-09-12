@@ -18,22 +18,46 @@ There are two ways to install community nodes:
 
 ## BullMQ 
 
-BullMQ is a Node.js queue library that is built on top of Redis. It is a rewrite of the original Bull library, which is no longer maintained. BullMQ is a simple, fast, and reliable queue library that is suitable for a wide range of use cases.
+BullMQ is a Node.js queue library that is built on top of Redis. It is a rewrite of the original Bull Library, which is no longer maintained. BullMQ is a simple, fast, and reliable queue library suitable for a wide range of use cases.
 
-While working with **N8N** I found that we need some way to to queue the jobs and work on them asynchronously. Since **Redis** and **BullMQ** are most lightweight and reliable solutions for this, I decided to create a set of nodes to work with **BullMQ**.
+While working with **N8N** I found that we need some way to to queue the jobs and work on them asynchronously. Since **Redis** and **BullMQ** are the most lightweight and reliable solutions for this, I decided to create a set of nodes to work with **BullMQ**.
 
-## Use Cases
+## Features
 
-- **Queueing Jobs**: You can use the BullMQ nodes to queue jobs that need to be processed asynchronously. This can be useful when you have a large number of jobs that need to be processed, but you don't want to block the main thread.
-- **Workflow monitoring**: You can use the BullMQ nodes to monitor the progress of a workflow. with **bullmq-board** you can monitor the progress of the jobs in the queue.
-- **Workflow rate limiting**: You can use the BullMQ nodes to rate limit the number of jobs that are processed at a time. This can be useful when you have a large number of jobs that need to be processed, but you don't want to overload the system.
-- **Workflow retries**: You can use the BullMQ nodes to retry jobs that fail. This can be useful when you have jobs that are prone to failure, and you want to automatically retry them until they succeed.
-- **Flow control**: You can use the BullMQ nodes to control the flow of jobs in a workflow. This can be useful when you want to ensure that jobs are processed in a specific order, or when you want to pause or resume the processing of jobs.
+Trying to cover all functionalities that [BullMQ provides](https://docs.bullmq.io/patterns/adding-bulks)
 
+- [x] **Queueing Jobs**: Queue jobs to be processed asynchronously without blocking the main thread.
+  
+- [x] **Workflow Monitoring**: Monitor the progress of jobs in the workflow using BullMQ and tools like bullmq-board.
+
+- [x] **Rate Limiting**: Rate-limit the number of jobs processed simultaneously to avoid overloading the system.
+
+- [x] **Job Retries**: Automatically retry jobs that fail, until they succeed.
+
+- [x] **Flow Control**: Control the flow of jobs in a workflow, ensuring specific job processing order, or pausing/resuming jobs.
+
+- [x] **Job Prioritization**: Set priority levels for jobs to ensure critical tasks are processed first.
+
+- [x] **Concurrency Management**: Control the number of concurrent jobs per worker to optimize resource utilization.
+
+- [x] **Delayed Jobs**: Schedule jobs to run after a certain delay, enabling future task execution like reminders.
+
+- [x] **Job Throttling & Debouncing**: Prevent overloads and reduce redundant processing by throttling or debouncing jobs.
+
+- [x] **Event-Driven Execution**: Trigger actions based on job events such as completion, failure, or progress updates.
+
+- [x] **Scalable Processing**: Scale jobs across multiple servers for high-throughput and fault-tolerant workflows.
+
+- [x] **Job Lifecycle Hooks**: Use before/after job processing hooks for logging, metrics, or job modification.
+
+- [x] **Atomic and Reliable Processing**: Ensure jobs are processed exactly once through Redis transactions for atomic, reliable workflows.
 
 ## Nodes
 
 ### BullMQ Trigger
+
+![image](https://github.com/user-attachments/assets/7781e79c-618c-4f87-8da8-0446447c9fbc)
+
 
 Starts a workflow when a new job is added to the specified queue.
 
@@ -45,6 +69,9 @@ Notes: In order to wait for the job to be completed, we must use the **BullMQ Re
 
 ### BullMQ 
 
+![image](https://github.com/user-attachments/assets/9d1ab343-d325-45ec-9ca4-83566df70984)
+
+
 BullMQ node to add a job to the specified queue, wih the ability to pass data to the job and options.
 
 ### BullMQ Respond
@@ -52,6 +79,16 @@ BullMQ node to add a job to the specified queue, wih the ability to pass data to
 BullMQ node to mark a job as completed, failed, or delayed.
 
 Notes: The respond node requires the `jobId` and a `lockToken` to mark the job as completed, failed, or delayed. you could get those values from the **BullMQ Trigger** node.
+
+### BullMQ Wait (WIP)
+
+Similar to the Wait node but wait for Queue events instead of webhook
+
+## Roadmap
+
+- [ ] Flow managerment
+- [ ] Better error handle
+- [ ] Bugs fixes
 
 ## Contribution
 
