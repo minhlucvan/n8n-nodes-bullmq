@@ -5,6 +5,13 @@
 
 This package provides nodes to interact with [BullMQ](https://docs.bullmq.io/) in n8n.
 
+## BullMQ 
+
+BullMQ is a Node.js queue library that is built on top of Redis. It is a rewrite of the original Bull Library, which is no longer maintained. BullMQ is a simple, fast, and reliable queue library suitable for a wide range of use cases.
+
+While working with **N8N** I found that we need some way to to queue the jobs and work on them asynchronously. Since **Redis** and **BullMQ** are the most lightweight and reliable solutions for this, I decided to create a set of nodes to work with **BullMQ**.
+
+
 ## Installation
 
 There are two ways to install community nodes:
@@ -15,12 +22,6 @@ There are two ways to install community nodes:
 - Manually from the command line: use this method if your n8n instance doesn't support installation through 
  [The n8n CLI](https://docs.n8n.io/integrations/community-nodes/installation/manual-install/)
 
-
-## BullMQ 
-
-BullMQ is a Node.js queue library that is built on top of Redis. It is a rewrite of the original Bull Library, which is no longer maintained. BullMQ is a simple, fast, and reliable queue library suitable for a wide range of use cases.
-
-While working with **N8N** I found that we need some way to to queue the jobs and work on them asynchronously. Since **Redis** and **BullMQ** are the most lightweight and reliable solutions for this, I decided to create a set of nodes to work with **BullMQ**.
 
 ## Features
 
