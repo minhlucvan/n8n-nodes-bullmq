@@ -1,34 +1,27 @@
 {
-  "name": "n8n-nodes-bullmq",
-  "version": "0.5.5",
+  "name": "n8n-nodes-bullmq-wingmaite",
+  "version": "0.0.1",
   "description": "N8n nodes for BullMQ",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
-  "homepage": "https://www.npmjs.com/package/n8n-nodes-bullmq",
   "author": {
-    "name": "@minhlucvan",
-    "email": "luk.mink@gmail.com"
+    "name": "@filipeborges",
+    "email": "filipe@wingmaite.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/minhlucvan/n8n-nodes-bullmq.git"
+    "url": "https://github.com/FilipeBorges1993/n8n-nodes-bullmq.git"
   },
-  "engines": {
-    "node": ">=18.10",
-    "pnpm": ">=9.1"
-  },
-  "packageManager": "pnpm@9.1.4",
   "main": "index.js",
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "build": "gulp clean && tsc && gulp build:icons",
+    "build": "tsc && gulp build:icons",
     "dev": "tsc --watch",
-    "format": "prettier nodes --write",
-    "lint": "eslint nodes package.json",
-    "lintfix": "eslint nodes package.json --fix",
-    "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes package.json"
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json --no-error-on-unmatched-pattern",
+    "lintfix": "eslint nodes credentials package.json --fix --no-error-on-unmatched-pattern",
+    "prepublishOnly": "npm run build && npm run lint --no-error-on-unmatched-pattern -c .eslintrc.prepublish.js nodes credentials package.json"
   },
   "files": [
     "dist"

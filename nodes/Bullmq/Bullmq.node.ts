@@ -402,19 +402,19 @@ export class Bullmq implements INodeType {
 
 					cleanup();
 				} else {
-					throw new Error(`The operation "${operation}" is not supported!`);
+					throw new NodeOperationError(this.getNode(), `The operation "${operation}" is not supported!`, { itemIndex });
 				};
 
 			} catch (error) {
 				if (this.continueOnFail()) {
 					items[itemIndex] = {
 						json: inputItem.json,
-						error: error,
+						error,
 						pairedItem: { item: itemIndex },
 					};
 					returnItems.push(items[itemIndex]);
 				} else {
-					throw new NodeOperationError(this.getNode(), error, { itemIndex });
+					throw new NodeOperationError(this.getNode(), `The operation "${error.message}" is not supported!`, { itemIndex });
 				}
 			}
 
